@@ -22,6 +22,7 @@ with st.sidebar:
 @st.cache_resource
 def load_assets():
     try:
+        # Loading the updated pipeline and clustered data
         pipeline = joblib.load("student_clustering_pipeline.pkl")
         train_df = pd.read_csv("student_scores_with_clusters.csv")
         
@@ -32,11 +33,13 @@ def load_assets():
         
         X_train_proc = preprocessor.transform(train_df[features])
         
-        # Centroids for distance-based classification
-        centroid_0 = X_train_proc[train_df['cluster_label'] == 0].mean(axis=0)
-        centroid_1 = X_train_proc[train_df['cluster_label'] == 1].mean(axis=0)
+        # Calculate centroids for each cluster found in your updated notebook
+        unique_clusters = sorted(train_df['cluster_label'].unique())
+        centroids = {}
+        for cluster in unique_clusters:
+            centroids[cluster] = X_train_proc[train_df['cluster_label'] == cluster].mean(axis=0)
         
-        return pipeline, train_df, (centroid_0, centroid_1)
+        return pipeline, train_df, centroids
     except Exception as e:
         st.error(f"Error loading files: {e}")
         return None, None, None
@@ -48,7 +51,7 @@ st.title("Student Performance Clustering Dashboard")
 
 if pipeline is not None:
     # --- STEP 1: PROFILE ---
-    st.subheader("Student Profile")
+    st.subheader("Step 1: Student Profile")
     col1, col2 = st.columns(2)
     with col1:
         gender = st.selectbox("Gender", ["male", "female"])
@@ -61,7 +64,7 @@ if pipeline is not None:
     st.divider()
     
     # --- STEP 2: SCORES ---
-    st.subheader("Subject Scores")
+    st.subheader("Step 2: Subject Scores")
     sc1, sc2, sc3, sc4 = st.columns(4)
     with sc1:
         math = st.number_input("Math Score", 0, 100, 75)
@@ -75,10 +78,10 @@ if pipeline is not None:
     with sc4:
         geog = st.number_input("Geography Score", 0, 100, 75)
 
-    # --- BUTTON & RESULTS ---
+    # --- RUN ANALYSIS ---
     if st.button("Run Analysis and Show Result", use_container_width=True):
         try:
-            # Prepare Input
+            # 1. Prepare Input
             input_df = pd.DataFrame([{
                 'gender': gender, 'part_time_job': part_time, 'absence_days': absence,
                 'extracurricular_activities': extra, 'weekly_self_study_hours': study,
@@ -89,45 +92,46 @@ if pipeline is not None:
                 'geography_score': float(geog)
             }])
 
-            # Processing
+            # 2. Process and Find Nearest Cluster
             proc = pipeline.named_steps['preprocessor']
             X_new = proc.transform(input_df)
             
-            dist0 = np.linalg.norm(X_new - centroids[0])
-            dist1 = np.linalg.norm(X_new - centroids[1])
+            # Distance-based assignment to handle updated cluster counts
+            distances = {c: np.linalg.norm(X_new - center) for c, center in centroids.items()}
+            best_cluster = min(distances, key=distances.get)
             
-            result_cluster = 0 if dist0 < dist1 else 1
-            label = "High Performance Student" if result_cluster == 0 else "Low Performance Student"
+            # Mapping based on your updated IPYNB groups
+            # (Assuming Cluster 0 is High and Cluster 1 is Low based on latest draft)
+            label = "High Performance Student" if best_cluster == 0 else "Low Performance Student"
 
             st.divider()
             
-            # Display Text Result
+            # Result Display
             st.markdown(f"### Student Segment: {label}")
-            if result_cluster == 0:
-                st.success(f"Classification Result: {label}")
+            if best_cluster == 0:
+                st.success(f"Classification: {label}")
             else:
-                st.warning(f"Classification Result: {label}")
+                st.warning(f"Classification: {label}")
 
-            # --- VISUALIZATIONS (STRICT VERTICAL STACK) ---
+            # --- STRICT VERTICAL VISUALIZATIONS ---
             st.subheader("Scientific Evidence")
             
-            # --- PLOT 1: PCA (ON TOP) ---
+            # PLOT 1: PCA (TOP)
             st.write("### 1. PCA Cluster Distribution")
             X_train_proc = proc.transform(train_df.drop(columns=['cluster_label'], errors='ignore'))
             pca = PCA(n_components=2)
             X_pca = pca.fit_transform(X_train_proc)
             
             fig1, ax1 = plt.subplots(figsize=(10, 5))
-            ax1.scatter(X_pca[:, 0], X_pca[:, 1], c=train_df['cluster_label'], cmap='viridis', alpha=0.3)
-            ax1.set_xlabel("PCA 1")
-            ax1.set_ylabel("PCA 2")
+            scatter = ax1.scatter(X_pca[:, 0], X_pca[:, 1], c=train_df['cluster_label'], cmap='viridis', alpha=0.4)
+            ax1.set_xlabel("PCA Component 1")
+            ax1.set_ylabel("PCA Component 2")
             st.pyplot(fig1)
 
-            # ADDING A PHYSICAL SPACER
-            st.write("")
-            st.write("")
+            st.write("") # Spacer
+            st.write("") 
 
-            # --- PLOT 2: DENDROGRAM (BELOW PCA) ---
+            # PLOT 2: DENDROGRAM (BOTTOM)
             st.write("### 2. Hierarchical Tree Structure (Dendrogram)")
             model = pipeline.named_steps['clusterer']
             counts = np.zeros(model.children_.shape[0])
@@ -140,10 +144,10 @@ if pipeline is not None:
             linkage_matrix = np.column_stack([model.children_, model.distances_, counts]).astype(float)
             
             fig2, ax2 = plt.subplots(figsize=(12, 7))
-            dendrogram(linkage_matrix, truncate_mode='level', p=3, ax=ax2, leaf_rotation=0)
+            dendrogram(linkage_matrix, truncate_mode='level', p=3, ax=ax2)
             st.pyplot(fig2)
 
         except Exception as e:
             st.error(f"Analysis Error: {e}")
 else:
-    st.error("Assets not loaded correctly. Check project folder.")
+    st.error("Assets (PKL/CSV) could not be loaded. Please ensure they are in the app directory.")
