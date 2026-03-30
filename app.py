@@ -120,12 +120,6 @@ if st.button("Analyze Student & Map Cluster", use_container_width=True):
     ax.legend()
     st.pyplot(fig)
     
-    # Descriptions
-    desc = {
-        0: "Cluster 0: Likely **High Achievers** with consistent habits.",
-        1: "Cluster 1: Likely **Mid-Tier** students with balanced scores.",
-        2: "Cluster 2: Likely **At-Risk** students needing academic support."
-    }
-    st.info(desc.get(res_cluster))
+
 else:
     st.info("Fill in the fields above and click 'Analyze' to generate the report.")
