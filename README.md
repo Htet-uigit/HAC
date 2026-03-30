@@ -16,13 +16,12 @@ This project is a **Student Analytics Web Application** built using **Hierarchic
 ---
 
 ##  Technologies Used
-- Python  
-- Streamlit  
-- Pandas  
-- NumPy  
-- Scikit-learn  
-- Matplotlib  
-- SciPy
+- streamlit
+- pandas
+- numpy
+- matplotlib
+- scikit-learn==1.7.2
+- joblib
 
 ## Author 
 - May Phuu Thwel
