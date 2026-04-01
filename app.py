@@ -60,7 +60,6 @@ st.title("Student Performance: 3-Cluster Analysis")
 st.write("---")
 
 if pipeline is None:
-    st.error("Missing model files. Please ensure the .pkl and .csv files are in the folder.")
     st.stop()
 
 # This section represents the "Red Boxes" from your reference
